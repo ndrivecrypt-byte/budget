@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moniteur Budget v28 - UltraWide Pro</title>
+    <style>
+        /* CONFIGURATION RIGIDE SANS ÉTALEMENT ASYMÉTRIQUE SUR LES ÉCRANS LARGES */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { background-color: #060913; width: 100%; max-width: 100%; overflow-x: hidden; }
+        body { font-family: 'Segoe UI', sans-serif; color: #f1f5f9; padding: 20px; display: flex; flex-direction: column; align-items: center; gap: 14px; min-height: 100vh; }
+        
+        /* Châssis central à 1200px : Élimine les décalages visuels */
+        .master-wrapper { width: 100%; max-width: 1200px; display: flex; flex-direction: column; gap: 14px; margin: 0 auto; }
+        .container { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding: 20px; border-radius: 14px; border: 1px solid #334155; width: 100%; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5); }
+        .title { margin: 0 0 12px 0; color: #38bdf8; font-size: 14px; border-bottom: 1px solid #334155; padding-bottom: 6px; text-transform: uppercase; font-weight: 700; }
+        /* Navigation principale par interrupteurs */
+        .tabs-bar { display: flex; width: 100%; gap: 6px; margin-bottom: 2px; }
+        .tab-btn { background-color: #1e293b; color: #94a3b8; border: 1px solid #334155; padding: 12px 14px; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 13px; flex: 1; text-align: center; }
+        .tab-btn.active { background: linear-gradient(135deg, #0ea5e9 0%, #38bdf8 100%); color: #0f172a; border-color: #38bdf8; box-shadow: 0 0 12px rgba(56,189,248,0.3); }
+        
+        .page-panel { display: none; width: 100%; }
+        .page-panel.active { display: block !important; }
+        
+        /* Grille des 5 compteurs numériques du tableau de bord */
+        .grid-layout-kpi { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; width: 100%; margin-bottom: 12px; }
+        .kpi-card { padding: 10px 2px; border-radius: 8px; border: 1px solid #334155; text-align: center; background-color: rgba(15,23,42,0.4); }
+        .kpi-card label { font-size: 8px; text-transform: uppercase; color: #94a3b8; display: block; margin-bottom: 2px; }
+        .kpi-val { font-size: 12px; font-weight: 800; font-family: monospace; }
+        /* BLOC 3 : RÉSERVOIRS ÉTANCHES, DIGICODE PIN & BOUTONS SUPPLÉMENTAIRES CORRIGÉS EN ROUGE */
+        .cylinder-box-wrapper { position: relative; display: flex; justify-content: center; gap: 36px; padding: 15px 0; align-items: center; width: 100%; min-height: 185px; }
+        .cylinder-tank { position: relative; width: 85px; height: 165px; background: rgba(15, 23, 42, 0.6); border-left: 2px solid #475569; border-right: 2px solid #475569; border-radius: 0 0 42px 42px / 0 0 16px 19px; overflow: hidden; z-index: 1; }
+        .cylinder-top { position: absolute; top: 0; left: 0; width: 100%; height: 14px; background: #1e293b; border: 2px solid #475569; border-radius: 50%; z-index: 5; text-align: center; font-size: 7px; line-height: 10px; font-weight: bold; color: #94a3b8; }
+        .cylinder-lbl { position: absolute; top: 52%; left: 50%; transform: translate(-50%, -50%); font-size: 12px; font-weight: 800; text-shadow: 0 2px 4px #000; text-align: center; z-index: 6; color: #fff; }
+        
+        .liquid-cons { position: absolute; bottom: 0; left: 0; width: 100%; height: 0%; background: linear-gradient(to top, rgba(14, 165, 233, 0.85), rgba(56, 189, 248, 0.5)); border-radius: 0 0 40px 40px / 0 0 15px 18px; transition: height 0.6s ease; border-top: 1px solid #38bdf8; }
+        .liquid-cons::after { content: ''; position: absolute; top: -4px; left: 0; width: 100%; height: 8px; background: rgba(56, 189, 248, 0.7); border-radius: 50%; }
+        .liquid-want { position: absolute; bottom: 0; left: 0; width: 100%; height: 0%; background: linear-gradient(to top, rgba(234, 179, 8, 0.85), rgba(250, 204, 21, 0.5)); border-radius: 0 0 40px 40px / 0 0 15px 18px; transition: height 0.6s ease; border-top: 1px solid #facc15; }
+        .liquid-want::after { content: ''; position: absolute; top: -4px; left: 0; width: 100%; height: 8px; background: rgba(250, 204, 21, 0.7); border-radius: 50%; }
+        .liquid-save { position: absolute; bottom: 0; left: 0; width: 100%; height: 0%; background: linear-gradient(to top, rgba(147, 51, 234, 0.85), rgba(168, 85, 247, 0.5)); border-radius: 0 0 40px 40px / 0 0 15px 18px; transition: height 0.6s ease; border-top: 1px solid #c084fc; }
+        .liquid-save::after { content: ''; position: absolute; top: -4px; left: 0; width: 100%; height: 8px; background: rgba(168, 85, 247, 0.7); border-radius: 50%; }
+        .cylinder-tank.danger-active { border-color: #ef4444; }
+        .cylinder-tank.danger-active .liquid-cons { background: linear-gradient(to top, rgba(239, 68, 68, 0.9), rgba(220, 38, 38, 0.6)); border-top: 1px solid #f87171; }
+        
+        .pin-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #0c111d; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 999 !important; border-radius: 12px; gap: 6px; backdrop-filter: blur(12px); }
+        .pin-display { letter-spacing: 6px; font-size: 18px; font-family: monospace; color: #38bdf8; font-weight: bold; margin-bottom: 2px; }
+        .pin-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; width: 130px; }
+        .pin-btn { background: #1e293b; border: 1px solid #334155; color: #f1f5f9; padding: 6px; font-size: 13px; font-weight: bold; border-radius: 6px; cursor: pointer; text-align: center; height: 32px; }
+        .pin-btn:active { background: #334155; }
+
+        .grid-layout { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; width: 100%; }
+        .input-group { display: flex; flex-direction: column; width: 100%; }
+        input, select { padding: 10px; border: 1px solid #475569; border-radius: 8px; font-size: 13px; background-color: #0f172a; color: #f8fafc; outline: none; width: 100%; height: 40px; }
+        
+        .table-wrapper { width: 100%; overflow-x: auto; margin-top: 4px; border-radius: 8px; border: 1px solid #334155; }
+        .budget-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 12px; background-color: rgba(15,23,42,0.3); min-width: 320px; table-layout: fixed; }
+        .budget-table th, .budget-table td { padding: 10px 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .budget-table th { background-color: #1e293b; color: #94a3b8; font-size: 9px; border-bottom: 2px solid #475569; }
+        .budget-table tr:nth-child(even) { background-color: rgba(30, 41, 59, 0.2); }
+        .budget-table td { border-bottom: 1px solid #1e293b; color: #e2e8f0; }
+
+        .btn-act-pro { background-color: #1e293b !important; color: #f1f5f9 !important; border: 1px solid #38bdf8 !important; border-radius: 8px; font-weight: 700; font-size: 12px; cursor: pointer; transition: all 0.2s ease; height: 40px; display: flex; align-items: center; justify-content: center; width: 100%; text-transform: uppercase; }
+        .btn-act-pro:hover { background-color: #38bdf8 !important; color: #0f172a !important; box-shadow: 0 0 10px rgba(56,189,248,0.4); }
+        .btn-danger-pro { border-color: #ef4444 !important; }
+        .btn-danger-pro:hover { background-color: #ef4444 !important; color: #fff !important; box-shadow: 0 0 10px rgba(239,68,68,0.4); }
+        .btn-warning-pro { border-color: #f97316 !important; }
+        .btn-warning-pro:hover { background-color: #f97316 !important; color: #fff !important; box-shadow: 0 0 10px rgba(249,115,22,0.4); }
+        .btn-success-pro { border-color: #10b981 !important; }
+        .btn-success-pro:hover { background-color: #10b981 !important; color: #0f172a !important; box-shadow: 0 0 10px rgba(16,185,129,0.4); }
+
+        /* CORRECTIF : ROUGE INTENSE CYBERPUNK POUR LES BOUTONS SUPPR */
+        .btn-del { background-color: #1c111a !important; color: #f87171 !important; border: 1px solid #ef4444 !important; padding: 3px 8px !important; border-radius: 6px !important; cursor: pointer !important; font-size: 10px !important; font-weight: bold !important; transition: all 0.2s ease !important; height: auto !important; width: auto !important; display: inline-block !important; }
+        .btn-del:hover { background-color: #ef4444 !important; color: #ffffff !important; box-shadow: 0 0 8px #ef4444 !important; }
+
+        .chart-box { width: 100%; display: flex; gap: 14px; align-items: flex-end; height: 160px; padding: 20px 10px 10px 10px; background-color: #090d16; border-radius: 12px; border: 1px solid #334155; overflow-x: auto; }
+        .chart-col { display: flex; flex-direction: column; align-items: center; gap: 4px; justify-content: flex-end; height: 100%; }
+        .mini-cylinder-pair { display: flex; gap: 4px; align-items: flex-end; height: 105px; border-bottom: 2px solid #334155; padding-bottom: 2px; }
+        .mini-tank { position: relative; width: 24px; height: 100%; background: rgba(30, 41, 59, 0.5); border-left: 1px solid #475569; border-right: 1px solid #475569; border-radius: 0 0 12px 12px / 0 0 4px 4px; overflow: hidden; }
+        .mini-top { position: absolute; top: 0; left: 0; width: 100%; height: 5px; background: #0f172a; border: 1px solid #475569; border-radius: 50%; z-index: 4; }
+        .mini-liquid { position: absolute; bottom: 0; left: 0; width: 100%; height: 0%; border-radius: 0 0 12px 12px / 0 0 4px 4px; transition: height 0.5s ease; }
+        .mini-liquid-rev { background: linear-gradient(to top, rgba(16, 185, 129, 0.8), rgba(16, 185, 129, 0.4)); border-top: 1px solid #34d399; }
+        .mini-liquid-dep { background: linear-gradient(to top, rgba(239, 68, 68, 0.8), rgba(239, 68, 68, 0.4)); border-top: 1px solid #f87171; }
+        .col-lbl { font-size: 10px; color: #94a3b8; font-weight: 700; text-transform: uppercase; }
+        .master-footer-sticky { width: 100%; display: flex; gap: 12px; justify-content: center; margin-top: 25px; padding-top: 10px; border-top: 1px solid #1e293b; }
+    </style>
+</head>
+<body>
+    <div class="master-wrapper">
+        <div class="tabs-bar">
+            <button class="tab-btn active" id="btn-tab-dashboard" onclick="switchTab('dashboard')">📊 Tableau de Bord</button>
+            <button class="tab-btn" id="btn-tab-revenus" onclick="switchTab('revenus')">📈 Revenus</button>
+            <button class="tab-btn" id="btn-tab-depenses" onclick="switchTab('depenses')">📉 Dépenses</button>
+            <button class="tab-btn" id="btn-tab-epargne" onclick="switchTab('epargne')">💰 Épargne</button>
+            <button class="tab-btn" id="btn-tab-registres" onclick="switchTab('registres')">🗂️ Registres</button>
+        </div>
+
+        <div id="page-dashboard" class="page-panel active">
+            <div class="container" style="margin-bottom: 14px; border-color: #38bdf8;">
+                <div class="title" style="color: #38bdf8;">Tour de Contrôle Budgétaire</div>
+                <div class="grid-layout-kpi">
+                    <div class="kpi-card" style="border-color:rgba(16,185,129,0.3);"><label style="color:#10b981;">Revenus</label><div class="kpi-val" id="kpiRevenus" style="color:#10b981;">0 €</div></div>
+                    <div class="kpi-card" style="border-color:rgba(239,68,68,0.3);"><label style="color:#ef4444;">Dépenses</label><div class="kpi-val" id="kpiDepenses" style="color:#ef4444;">0 €</div></div>
+                    <div class="kpi-card" style="border-color:rgba(168,85,247,0.3);"><label style="color:#a855f7;">Épargne</label><div class="kpi-val" id="kpiEpargne" style="color:#a855f7;">0 €</div></div>
+                    <div class="kpi-card" style="border-color:rgba(192,132,252,0.3);"><label style="color:#c084fc;">Taux Ep.</label><div class="kpi-val" id="kpiTaux" style="color:#c084fc;">0%</div></div>
+                    <div class="kpi-card" style="border-color:rgba(56,189,248,0.3);"><label style="color:#38bdf8;">Solde Net</label><div class="kpi-val" id="kpiSolde" style="color:#38bdf8;">0 €</div></div>
+                </div>
+                
+                <div class="cylinder-box-wrapper">
+                    <!-- LE COUVERCLE DE SÉCURITÉ NOIR TOTALEMENT OPAQUE -->
+                    <div class="pin-overlay" id="cylinderPinGate">
+                        <div style="font-size: 8px; color: #94a3b8; font-weight: bold; letter-spacing: 0.5px;">🔒 COMMANDE VERROUILLÉE</div>
+                        <div class="pin-display" id="pinStars">****</div>
+                        <div class="pin-grid">
+                            <button class="pin-btn" onclick="pressPin(1)">1</button>
+                            <button class="pin-btn" onclick="pressPin(2)">2</button>
+                            <button class="pin-btn" onclick="pressPin(3)">3</button>
+                            <button class="pin-btn" onclick="pressPin(4)">4</button>
+                            <button class="pin-btn" onclick="pressPin(5)">5</button>
+                            <button class="pin-btn" onclick="pressPin(6)">6</button>
+                            <button class="pin-btn" onclick="pressPin(7)">7</button>
+                            <button class="pin-btn" onclick="pressPin(8)">8</button>
+                            <button class="pin-btn" onclick="pressPin(9)">9</button>
+                            <button class="pin-btn" style="color:#ef4444;" onclick="clearPin()">C</button>
+                            <button class="pin-btn" onclick="pressPin(0)">0</button>
+                            <button class="pin-btn" style="color:#10b981;" onclick="checkPin()">OK</button>
+                        </div>
+                    </div>
+
+                    <div class="cylinder-tank" id="cylinderSecurityTank"><div class="cylinder-top" style="color:#38bdf8;">BESOINS (50%)</div><div class="cylinder-liquid liquid-cons" id="cylinderLiquidFill"></div><div class="cylinder-lbl" id="cylinderPercentText">0%</div></div>
+                    <div class="cylinder-tank" style="border-color: #eab308;"><div class="cylinder-top" style="color:#eab308;">ENVIES (30%)</div><div class="cylinder-liquid liquid-want" id="cylinderWantFill"></div><div class="cylinder-lbl" id="cylinderWantText">0%</div></div>
+                    <div class="cylinder-tank" style="border-color: #a855f7;"><div class="cylinder-top" style="color:#a855f7;">PROJETS (20%)</div><div class="cylinder-liquid liquid-save" id="cylinderSaveFill"></div><div class="cylinder-lbl" id="cylinderSaveText">0%</div></div>
+                </div>
+            </div>
+            <!-- FORMULAIRE CREATION RUBRIQUES PRO SANS BOUTON BLANC -->
+            <div class="container" style="border-color: #eab308; margin-bottom: 14px;">
+                <div style="font-weight:700; font-size:12px; color:#eab308; border-bottom:1px solid #334155; padding-bottom:6px; text-transform:uppercase;">🔧 Créer une Nouvelle Rubrique</div>
+                <div style="display:flex; gap:10px; margin-top:10px;">
+                    <input type="text" id="newCategoryInput" placeholder="ex: Cigarettes, Assurances, Restos..." style="height:40px; font-size:13px; flex:3;">
+                    <button class="btn-act-pro btn-warning-pro" onclick="creerNouvelleCategorie()" style="flex:1;">🛠️ ENREGISTRER</button>
+                </div>
+            </div>
+
+            <div class="container" style="border-color: #475569; margin-bottom: 14px;">
+                <div class="title" style="margin-bottom:6px; padding-bottom:4px; display:flex; justify-content:space-between; align-items:center;"><span style="font-size:12px; font-weight:700; color:#94a3b8;">📊 Ventilation des comptes</span><select id="dashboardFilter" onchange="rafrachirTout()" style="height:28px; padding:2px 6px; font-size:12px; background-color:#0f172a; width:140px; border-color:#334155; color:#fff;"></select></div>
+                <div class="table-wrapper"><table class="budget-table"><thead><tr><th>Désignation</th><th>Volume Flux</th></tr></thead><tbody id="tableBodyCategories"></tbody></table></div>
+            </div>
+
+            <div class="container" style="border-color: #334155; margin-bottom: 14px;">
+                <h2 class="title" style="color: #94a3b8;">📊 Historique Mensuel par Réservoirs Cylindriques</h2>
+                <div class="chart-box" id="pureCssChartContainer"></div>
+            </div>
+
+            <!-- FORMULAIRE SAISIE UNIQUE REMIS À NEUF SANS BLANC -->
+            <div class="container" style="margin-bottom: 20px;">
+                <h2 class="title">Saisie Unique Base de Données</h2>
+                <div class="grid-layout" style="align-items:end;">
+                    <div class="input-group"><input type="date" id="txDate"></div>
+                    <div class="input-group">
+                        <select id="txType">
+                            <option value="Revenu">📈 Revenu</option>
+                            <option value="Dépense-Besoin">📉 Dépense : Besoin (50%)</option>
+                            <option value="Dépense-Envie">💛 Dépense : Envie (30%)</option>
+                            <option value="Épargne">💰 Épargne (20%)</option>
+                        </select>
+                    </div>
+                    <div class="input-group"><select id="txCategory"></select></div>
+                    <div class="input-group"><input type="number" id="txAmount" placeholder="Montant (€)" step="0.01"></div>
+                    <div class="input-group"><button class="btn-act-pro btn-success-pro" onclick="ajouterTx()">ENREGISTRER</button></div>
+                </div>
+            </div>
+        </div>
+        <div id="page-revenus" class="page-panel"><div class="container" style="border-color:#10b981;"><h2 class="title" style="color:#10b981;">📈 Carnet Individuel des Entrées (Revenus)</h2><div class="table-wrapper"><table class="budget-table"><thead><tr><th>Date</th><th>Rubrique</th><th>Montant</th><th>Action</th></tr></thead><tbody id="tableBodyRevenusSolo"></tbody></table></div></div></div>
+        <div id="page-depenses" class="page-panel"><div class="container" style="border-color:#ef4444;"><h2 class="title" style="color:#ef4444;">📉 Carnet Individuel des Sorties (Dépenses)</h2><div class="table-wrapper"><table class="budget-table"><thead><tr><th>Date</th><th>Rubrique</th><th>Montant</th><th>Action</th></tr></thead><tbody id="tableBodyDepensesSolo"></tbody></table></div></div></div>
+        <div id="page-epargne" class="page-panel"><div class="container" style="border-color:#a855f7;"><h2 class="title" style="color:#a855f7;">💰 Carnet Individuel des Placements (Épargne)</h2><div class="table-wrapper"><table class="budget-table"><thead><tr><th>Date</th><th>Rubrique</th><th>Montant</th><th>Action</th></tr></thead><tbody id="tableBodyEpargneSolo"></tbody></table></div></div></div>
+
+        <div id="page-registres" class="page-panel">
+            <div class="container" style="border-color:#38bdf8; display:flex; flex-direction:column; gap:20px;">
+                <div><h2 class="title" style="color:#34d399; margin-bottom:6px;">📈 Reçus des Rentrées (Revenus)</h2><div class="table-wrapper"><table class="budget-table"><thead><tr><th>Date Opération</th><th>Catégorie affectée</th><th>Montant Crédité</th><th>Action</th></tr></thead><tbody id="tableBodyRevenus"></tbody></table></div></div>
+                <div><h2 class="title" style="color:#f87171; margin-bottom:6px;">📉 Grand Livre des Factures (Dépenses)</h2><div class="table-wrapper"><table class="budget-table"><thead><tr><th>Date Opération</th><th>Catégorie affectée</th><th>Montant Débité</th><th>Action</th></tr></thead><tbody id="tableBodyDepenses"></tbody></table></div></div>
+                <div><h2 class="title" style="color:#c084fc; margin-bottom:6px;">💰 Journal des Placements (Épargne)</h2><div class="table-wrapper"><table class="budget-table"><thead><tr><th>Date Opération</th><th>Catégorie affectée</th><th>Montant Placé</th><th>Action</th></tr></thead><tbody id="tableBodyEpargne"></tbody></table></div></div>
+            </div>
+        </div>
+
+        <!-- LES BOUTONS DU BAS REÇOIVENT ENFIN LEUR COMBINAISON DE STYLE CYBERPUNK CHROME -->
+        <div class="master-footer-sticky">
+            <button class="btn-act-pro" onclick="exporterVersExcelCSV()" style="max-width:250px;">📤 Exporter vers Excel (.CSV)</button>
+            <button class="btn-act-pro btn-danger-pro" onclick="purgerBDD()" style="max-width:250px;">🗑️ Vider la Base de Données</button>
+        </div>
+    </div>
+<script>
+    // CODE PIN SECRETE MAÎTRE : 1234
+    let codePinMaster = "1234";
+    let codePinSaisi = "";
+
+    function pressPin(num) {
+        if (codePinSaisi.length < 4) {
+            codePinSaisi += num;
+            document.getElementById("pinStars").innerText = "*".repeat(codePinSaisi.length);
+        }
+    }
+    function clearPin() {
+        codePinSaisi = "";
+        document.getElementById("pinStars").innerText = "****";
+    }
+    function checkPin() {
+        if (codePinSaisi === codePinMaster) {
+            document.getElementById("cylinderPinGate").style.display = "none";
+        } else {
+            alert("CODE PIN INCORRECT.");
+            clearPin();
+        }
+    }
+
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.page-panel').forEach(page => { page.style.display = 'none'; page.classList.remove('active'); });
+        const activeBtn = document.getElementById('btn-tab-' + tabId);
+        if (activeBtn) activeBtn.classList.add('active');
+        const targetPage = document.getElementById('page-' + tabId);
+        if (targetPage) { targetPage.style.display = 'block'; targetPage.classList.add('active'); }
+        rafrachirTout();
+    }
+</script>
+<script>
+    let categoriesDefaut = ["Salaire", "Loyer", "Courses", "Essence", "Tabac", "Abonnements", "Divers"];
+
+    function initialiserCategories() {
+        if (!localStorage.getItem('categories_budget_v14')) { 
+            localStorage.setItem('categories_budget_v14', JSON.stringify(categoriesDefaut)); 
+        }
+        renderDropdownsCategories();
+    }
+
+    function renderDropdownsCategories() {
+        let cats = JSON.parse(localStorage.getItem('categories_budget_v14')) || categoriesDefaut;
+        const filterSelect = document.getElementById('dashboardFilter');
+        const inputSelect = document.getElementById('txCategory');
+        let oldFilterVal = filterSelect ? filterSelect.value : "TOUT";
+        if (filterSelect) { 
+            filterSelect.innerHTML = `<option value="TOUT">✨ TOUT (Global)</option>`; 
+            cats.forEach(c => { filterSelect.innerHTML += `<option value="${c}">${c}</option>`; }); 
+            filterSelect.value = oldFilterVal; 
+        }
+        if (inputSelect) { 
+            inputSelect.innerHTML = ""; 
+            cats.forEach(c => { inputSelect.innerHTML += `<option value="${c}">${c}</option>`; }); 
+        }
+    }
+
+    function creerNouvelleCategorie() {
+        const input = document.getElementById('newCategoryInput'); let txt = input.value.trim(); if (!txt) return alert("Nom vide.");
+        txt = txt.charAt(0).toUpperCase() + txt.slice(1); let cats = JSON.parse(localStorage.getItem('categories_budget_v14')) || categoriesDefaut;
+        if (cats.includes(txt)) return alert("Existe déjà.");
+        cats.push(txt); localStorage.setItem('categories_budget_v14', JSON.stringify(cats)); input.value = "";
+        renderDropdownsCategories(); rafrachirTout();
+    }
+
+    let bddInit = [{ date: "2026-10-01", type: "Revenu", cat: "Salaire", amount: 1600.00 }, { date: "2026-10-02", type: "Dépense-Besoin", cat: "Loyer", amount: 25.30 }, { date: "2026-10-08", type: "Épargne", cat: "Divers", amount: 250.00 }];
+    if (!localStorage.getItem('bdd_finance_v14')) { localStorage.setItem('bdd_finance_v14', JSON.stringify(bddInit)); }
+
+    // BLINDAGE : DECLENCHEMENT ET INITIALISATION COMPLETE DIRECTE
+    document.addEventListener("DOMContentLoaded", () => { 
+        document.getElementById('txDate').value = new Date().toISOString().split('T')[0]; 
+        initialiserCategories(); 
+        switchTab('dashboard'); 
+        rafrachirTout();
+    });
+
+    function ajouterTx() {
+        const inputDate = document.getElementById('txDate').value; const type = document.getElementById('txType').value; const cat = document.getElementById('txCategory').value; const amount = parseFloat(document.getElementById('txAmount').value);
+        if (!inputDate || isNaN(amount) || amount <= 0) return alert("Données incorrectes.");
+        let base = JSON.parse(localStorage.getItem('bdd_finance_v14')) || []; 
+        base.push({ date: inputDate, type: type, cat: cat, amount: amount });
+        localStorage.setItem('bdd_finance_v14', JSON.stringify(base)); 
+        document.getElementById('txAmount').value = ""; 
+        rafrachirTout();
+    }
+</script>
+<script>
+    function rafrachirTout() {
+        let base = JSON.parse(localStorage.getItem('bdd_finance_v14')) || [];
+        const filterSelect = document.getElementById('dashboardFilter'); const activeFilter = filterSelect ? filterSelect.value : "TOUT";
+        const tRev = document.getElementById('tableBodyRevenus'); const tDep = document.getElementById('tableBodyDepenses'); const tEpa = document.getElementById('tableBodyEpargne');
+        const tRevSolo = document.getElementById('tableBodyRevenusSolo'); const tDepSolo = document.getElementById('tableBodyDepensesSolo'); const tEpaSolo = document.getElementById('tableBodyEpargneSolo');
+        
+        if(tRev) tRev.innerHTML = ""; if(tDep) tDep.innerHTML = ""; if(tEpa) tEpa.innerHTML = "";
+        if(tRevSolo) tRevSolo.innerHTML = ""; if(tDepSolo) tDepSolo.innerHTML = ""; if(tEpaSolo) tEpaSolo.innerHTML = "";
+
+        let sRev = 0, sDep = 0, sEpa = 0; let totalBesoins = 0, totalEnvies = 0, totalEpargne = 0; let categoriesVolume = {};
+        base.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        base.forEach((item, index) => {
+            let dateStr = new Date(item.date).toLocaleDateString('fr-FR'); let displayType = item.type.startsWith("Dépense") ? "Dépense" : item.type;
+            let cBadge = item.type==='Revenu'?'badge-rev':(item.type==='Épargne'?'badge-epa':'badge-dep');
+            let cColor = item.type==='Revenu'?'#34d399':(item.type==='Épargne'?'#c084fc':'#f87171');
+            let sign = item.type==='Revenu'?'+':'-';
+            let vFmt = item.amount.toLocaleString('fr-FR', {minimumFractionDigits:2});
+            
+            let rowHTML = `<tr><td>📅 ${dateStr}</td><td><span class="badge-flux ${cBadge}">${item.cat}</span></td><td style="font-weight:bold; font-family:monospace; color:${cColor};">${sign} ${vFmt} €</td><td><button class="btn-del" onclick="supprimerItem(${index})">Suppr</button></td></tr>`;
+            
+            if (item.type === "Revenu") { if(tRev) tRev.innerHTML += rowHTML; if(tRevSolo) tRevSolo.innerHTML += rowHTML; }
+            if (item.type.startsWith("Dépense")) { if(tDep) tDep.innerHTML += rowHTML; if(tDepSolo) tDepSolo.innerHTML += rowHTML; }
+            if (item.type === "Épargne") { if(tEpa) tEpa.innerHTML += rowHTML; if(tEpaSolo) tEpaSolo.innerHTML += rowHTML; }
+
+            if (item.type === "Revenu") sRev += item.amount;
+            if (item.type === "Dépense-Besoin") { totalBesoins += item.amount; sDep += item.amount; }
+            if (item.type === "Dépense-Envie") { totalEnvies += item.amount; sDep += item.amount; }
+            if (item.type === "Épargne") { totalEpargne += item.amount; sEpa += item.amount; }
+
+            if (activeFilter === "TOUT" || item.cat === activeFilter) {
+                if (!categoriesVolume[item.cat]) { categoriesVolume[item.cat] = { isIncome: (item.type === "Revenu"), total: 0 }; }
+                categoriesVolume[item.cat].total += item.amount;
+            }
+        });
+
+        if(tRevSolo && tRevSolo.innerHTML==="") tRevSolo.innerHTML="<tr><td colspan='4' style='text-align:center; color:#64748b;'>Aucun revenu.</td></tr>";
+        if(tDepSolo && tDepSolo.innerHTML==="") tDepSolo.innerHTML="<tr><td colspan='4' style='text-align:center; color:#64748b;'>Aucune dépense.</td></tr>";
+        if(tEpaSolo && tEpaSolo.innerHTML==="") tEpaSolo.innerHTML="<tr><td colspan='4' style='text-align:center; color:#64748b;'>Aucun placement.</td></tr>";
+
+        let soldeDisponible = sRev - sDep - sEpa;
+        let pctBesoins = sRev > 0 ? (totalBesoins / sRev) * 100 : 0;
+        let pctEnvies = sRev > 0 ? (totalEnvies / sRev) * 100 : 0;
+        let pctEpargneReel = sRev > 0 ? (totalEpargne / sRev) * 100 : 0;
+
+        document.getElementById('kpiRevenus').innerText = sRev.toLocaleString('fr-FR') + " €";
+        document.getElementById('kpiDepenses').innerText = sDep.toLocaleString('fr-FR') + " €";
+        document.getElementById('kpiEpargne').innerText = sEpa.toLocaleString('fr-FR') + " €";
+        document.getElementById('kpiTaux').innerText = (sRev > 0 ? (sEpa / sRev) * 100 : 0).toFixed(0) + " %";
+        document.getElementById('kpiSolde').innerText = soldeDisponible.toLocaleString('fr-FR', {minimumFractionDigits:2}) + " €";
+        document.getElementById('kpiSolde').style.color = soldeDisponible < 0 ? "#f87171" : "#38bdf8";
+
+        if (document.getElementById('cylinderLiquidFill')) { document.getElementById('cylinderLiquidFill').style.height = Math.min(pctBesoins, 100) + "%"; document.getElementById('cylinderPercentText').innerHTML = pctBesoins.toFixed(0) + "%"; }
+        if (document.getElementById('cylinderWantFill')) { document.getElementById('cylinderWantFill').style.height = Math.min(pctEnvies, 100) + "%"; document.getElementById('cylinderWantText').innerHTML = pctEnvies.toFixed(0) + "%"; }
+        if (document.getElementById('cylinderSaveFill')) { document.getElementById('cylinderSaveFill').style.height = Math.min(pctEpargneReel, 100) + "%"; document.getElementById('cylinderSaveText').innerHTML = pctEpargneReel.toFixed(0) + "%"; }
+        
+        const tCat = document.getElementById('tableBodyCategories');
+        if (tCat) {
+            tCat.innerHTML = "";
+            for (let c in categoriesVolume) {
+                let rCat = document.createElement('tr'); let isInc = categoriesVolume[c].isIncome;
+                let sign = isInc ? '+' : '-'; let colColor = isInc ? '#34d399' : '#f87171';
+                let tFmt = categoriesVolume[c].total.toLocaleString('fr-FR', {minimumFractionDigits:2});
+                rCat.innerHTML = `<td>📁 <b>${c}</b></td><td style="color:${colColor}; font-weight:bold;">${sign} ${tFmt} €</td>`;
+                tCat.appendChild(rCat);
+            }
+            if(tCat.innerHTML === "") tCat.innerHTML = `<tr><td colspan="2" style="text-align:center; color:#64748b;">Aucune ligne.</td></tr>`;
+        }
+        genererGraphiqueNatifCylindres();
+    }
+
+    function genererGraphiqueNatifCylindres() {
+        const container = document.getElementById('pureCssChartContainer'); if (!container) return;
+        let base = JSON.parse(localStorage.getItem('bdd_finance_v14')) || [];
+        let moisNoms = ["Janv", "Févr", "Mars", "Avril", "Mai", "Juin", "Juill", "Août", "Sept", "Oct", "Nov", "Déc"];
+        let revParMois = Array(12).fill(0), depParMois = Array(12).fill(0);
+        base.forEach(item => { let m = new Date(item.date).getMonth(); if (item.type === "Revenu") revParMois[m] += item.amount; if (item.type.startsWith("Dépense") || item.type === "Épargne") depParMois[m] += item.amount; });
+        let maxVal = Math.max(...revParMois, ...depParMois, 1000); container.innerHTML = "";
+        moisNoms.forEach((mois, i) => {
+            if (revParMois[i] > 0 || depParMois[i] > 0) {
+                let hRev = (revParMois[i] / maxVal) * 100; let hDep = (depParMois[i] / maxVal) * 100;
+                let col = document.createElement('div'); col.className = "chart-col";
+                col.innerHTML = `<div class="mini-cylinder-pair"><div class="mini-tank"><div class="mini-top"></div><div class="mini-liquid mini-liquid-rev" style="height:${hRev}%;"></div></div><div class="mini-tank"><div class="mini-top"></div><div class="mini-liquid mini-liquid-dep" style="height:${hDep}%;"></div></div></div><div class="col-lbl">${mois}</div>`;
+                container.appendChild(col);
+            }
+        });
+        if(container.innerHTML === "") container.innerHTML = `<div style="color:#64748b; font-size:12px; text-align:center; width:100%;">Zéro transaction.</div>`;
+    }
+
+    function exporterVersExcelCSV() {
+        const base = JSON.parse(localStorage.getItem('bdd_finance_v14')) || []; let csv = "Date;Type;Categorie;Montant\n";
+        base.forEach(item => { csv += item.date + ";" + item.type + ";" + item.cat + ";" + item.amount.toFixed(2) + "\n"; });
+        const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csv], { type: "text/csv;charset=utf-8;" });
+        const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.setAttribute("download", "registre.csv");
+        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    }
+    function supprimerItem(index) { let base = JSON.parse(localStorage.getItem('bdd_finance_v14')) || []; base.splice(index, 1); localStorage.setItem('bdd_finance_v14', JSON.stringify(base)); rafrachirTout(); }
+    function purgerBDD() { if (confirm("Purger tout ?")) { localStorage.setItem('bdd_finance_v14', JSON.stringify([])); localStorage.setItem('categories_budget_v14', JSON.stringify(categoriesDefaut)); initialiserCategories(); rafrachirTout(); } }
+</script>
+</div>
+</body>
+</html>
