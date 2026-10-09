@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moniteur Budget v33 - Cockpit Intelligent</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { background-color: #060913; width: 100%; max-width: 100%; overflow-x: hidden; }
+        body { font-family: 'Segoe UI', sans-serif; color: #f1f5f9; padding: 20px; display: flex; flex-direction: column; align-items: center; gap: 14px; min-height: 100vh; }
+        
+        .master-wrapper { width: 100%; max-width: 1200px; display: flex; flex-direction: column; gap: 14px; margin: 0 auto; }
+        .container { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding: 20px; border-radius: 14px; border: 1px solid #334155; width: 100%; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5); }
+        .title { margin: 0 0 12px 0; color: #38bdf8; font-size: 14px; border-bottom: 1px solid #334155; padding-bottom: 6px; text-transform: uppercase; font-weight: 700; }
+        .tabs-bar { display: flex; width: 100%; gap: 6px; margin-bottom: 2px; }
+        .tab-btn { background-color: #1e293b; color: #94a3b8; border: 1px solid #334155; padding: 12px 14px; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 13px; flex: 1; text-align: center; }
+        .tab-btn.active { background: linear-gradient(135deg, #0ea5e9 0%, #38bdf8 100%); color: #0f172a; border-color: #38bdf8; box-shadow: 0 0 12px rgba(56,189,248,0.3); }
+        
+        .page-panel { display: none; width: 100%; }
+        .page-panel.active { display: block !important; }
+        
+        .grid-layout-kpi { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; width: 100%; margin-bottom: 12px; }
+        .kpi-card { padding: 10px 2px; border-radius: 8px; border: 1px solid #334155; text-align: center; background-color: rgba(15,23,42,0.4); }
+        .kpi-card label { font-size: 8px; text-transform: uppercase; color: #94a3b8; display: block; margin-bottom: 2px; }
+        .kpi-val { font-size: 12px; font-weight: 800; font-family: monospace; }
+        .cylinder-box-wrapper { position: relative; display: flex; justify-content: center; gap: 36px; padding: 15px 0; align-items: center; width: 100%; min-height: 185px; }
+        .cylinder-tank { position: relative; width: 85px; height: 165px; background: rgba(15, 23, 42, 0.6); border-left: 2px solid #475569; border-right: 2px solid #475569; border-radius: 0 0 42px 42px / 0 0 16px 19px; overflow: hidden; z-index: 1; transition: border-color 0.3s ease; }
+        .cylinder-top { position: absolute; top: 0; left: 0; width: 100%; height: 14px; background: #1e293b; border: 2px solid #475569; border-radius: 50%; z-index: 5; text-align: center; font-size: 7px; line-height: 10px; font-weight: bold; color: #94a3b8; transition: border-color 0.3s ease; }
+        .cylinder-lbl { position: absolute; top: 52%; left: 50%; transform: translate(-50%, -50%); font-size: 12px; font-weight: 800; text-shadow: 0 2px 4px #000; text-align: center; z-index: 6; color: #fff; }
+        
+        .liquid-cons { position: absolute; bottom: 0; left: 0; width: 100%; height: 0%; background: linear-gradient(to top, rgba(14, 165, 233, 0.85), rgba(56, 189, 248, 0.5)); border-radius: 0 0 40px 40px / 0 0 15px 18px; transition: height 0.6s ease; border-top: 1px solid #38bdf8; }
+        .liquid-cons::after { content: ''; position: absolute; top: -4px; left: 0; width: 100%; height: 8px; background: rgba(56, 189, 248, 0.7); border-radius: 50%; }
+        .liquid-want { position: absolute; bottom: 0; left: 0; width: 100%; height: 0%; background: linear-gradient(to top, rgba(234, 179, 8, 0.85), rgba(250, 204, 21, 0.5)); border-radius: 0 0 40px 40px / 0 0 15px 18px; transition: height 0.6s ease; border-top: 1px solid #facc15; }
+        .liquid-want::after { content: ''; position: absolute; top: -4px; left: 0; width: 100%; height: 8px; background: rgba(250, 204, 21, 0.7); border-radius: 50%; }
+        .liquid-save { position: absolute; bottom: 0; left: 0; width: 100%; height: 0%; background: linear-gradient(to top, rgba(147, 51, 234, 0.85), rgba(168, 85, 247, 0.5)); border-radius: 0 0 40px 40px / 0 0 15px 18px; transition: height 0.6s ease; border-top: 1px solid #c084fc; }
+        .liquid-save::after { content: ''; position: absolute; top: -4px; left: 0; width: 100%; height: 8px; background: rgba(168, 85, 247, 0.7); border-radius: 50%; }
+        
+        .cylinder-tank.danger-active { border-color: #ef4444 !important; box-shadow: 0 0 12px rgba(239, 68, 68, 0.4); }
+        .cylinder-tank.danger-active .cylinder-top { border-color: #ef4444 !important; color: #ef4444 !important; }
+        .cylinder-tank.danger-active .liquid-cons { background: linear-gradient(to top, rgba(239, 68, 68, 0.9), rgba(220, 38, 38, 0.6)) !important; border-top: 1px solid #f87171 !important; }
+        .cylinder-tank.danger-active .liquid-cons::after { background: rgba(248, 113, 113, 0.8) !important; }
+        
+        .pin-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #0c111d; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 999 !important; border-radius: 12px; gap: 6px; backdrop-filter: blur(12px); }
+        .pin-display { letter-spacing: 6px; font-size: 18px; font-family: monospace; color: #38bdf8; font-weight: bold; margin-bottom: 2px; }
+        .pin-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; width: 130px; }
+        .pin-btn { background: #1e293b; border: 1px solid #334155; color: #f1f5f9; padding: 6px; font-size: 13px; font-weight: bold; border-radius: 6px; cursor: pointer; text-align: center; height: 32px; }
+        .pin-btn:active { background: #334155; }
+
+        .month-scroller { display: flex; gap: 4px; overflow-x: auto; width: 100%; padding: 4px 0; margin-bottom: 12px; border-bottom: 1px solid #1e293b; scrollbar-width: none; }
+        .month-pill { background: #151f32; border: 1px solid #23334c; color: #94a3b8; padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; cursor: pointer; white-space: nowrap; transition: all 0.2s; }
+        .month-pill.active { background: #38bdf8; color: #0f172a; border-color: #38bdf8; box-shadow: 0 0 10px rgba(56,189,248,0.3); }
+
+        .grid-layout { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; width: 100%; }
+        input, select { padding: 10px; border: 1px solid #475569; border-radius: 8px; font-size: 13px; background-color: #0f172a; color: #f8fafc; outline: none; width: 100%; height: 40px; }
+        
+        .table-wrapper { width: 100%; overflow-x: auto; margin-top: 4px; border-radius: 8px; border: 1px solid #334155; }
+        .budget-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 12px; background-color: rgba(15,23,42,0.3); min-width: 320px; table-layout: fixed; }
+        .budget-table th, .budget-table td { padding: 10px 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .budget-table th { background-color: #1e293b; color: #94a3b8; font-size: 9px; border-bottom: 2px solid #475569; }
+        .budget-table tr:nth-child(even) { background-color: rgba(30, 41, 59, 0.2); }
+        .budget-table td { border-bottom: 1px solid #1e293b; color: #e2e8f0; }
+
+        .btn-act-pro { background-color: #1e293b !important; color: #f1f5f9 !important; border: 1px solid #38bdf8 !important; border-radius: 8px; font-weight: 700; font-size: 12px; cursor: pointer; transition: all 0.2s ease; height: 40px; display: flex; align-items: center; justify-content: center; width: 100%; text-transform: uppercase; }
+        .btn-act-pro:hover { background-color: #38bdf8 !important; color: #0f172a !important; box-shadow: 0 0 10px rgba(56,189,248,0.4); }
+        .btn-danger-pro { border-color: #ef4444 !important; }
+        .btn-danger-pro:hover { background-color: #ef4444 !important; color: #fff !important; box-shadow: 0 0 10px rgba(239,68,68,0.4); }
+        .btn-warning-pro { border-color: #f97316 !important; }
+        .btn-warning-pro:hover { background-color: #f97316 !important; color: #fff !important; box-shadow: 0 0 10px rgba(249,115,22,0.4); }
+        .btn-success-pro { border-color: #10b981 !important; }
+        .btn-success-pro:hover { background-color: #10b981 !important; color: #0f172a !important; box-shadow: 0 0 10px rgba(16,185,129,0.4); }
+
+        .btn-del { background-color: #1c111a !important; color: #f87171 !important; border: 1px solid #ef4444 !important; padding: 3px 8px !important; border-radius: 6px !important; cursor: pointer !important; font-size: 10px !important; font-weight: bold !important; transition: all 0.2s ease !important; display: inline-block !important; }
+        .btn-del:hover { background-color: #ef4444 !important; color: #ffffff !important; box-shadow: 0 0 8px #ef4444 !important; }
+
+        .chart-box { width: 100%; height: 180px; background-color: #090d16; border-radius: 12px; border: 1px solid #334155; position: relative; margin-top: 10px; padding: 15px 10px 5px 10px; }
+        .line-chart-wrapper { width: 100%; height: 180px; background-color: #090d16; border-radius: 12px; border: 1px solid #334155; position: relative; margin-top: 10px; padding: 15px 10px 5px 10px; }
+        .line-chart-svg { width: 100%; height: 100%; overflow: visible; }
+        .master-footer-sticky { width: 100%; display: flex; gap: 12px; justify-content: center; margin-top: 25px; padding-top: 10px; border-top: 1px solid #1e293b; }
+    </style>
+</head>
+<body>
+    <div class="master-wrapper">
+        <div class="tabs-bar">
+            <button class="tab-btn active" id="btn-tab-dashboard" onclick="switchTab('dashboard')">📊 Tableau de Bord</button>
+            <button class="tab-btn" id="btn-tab-revenus" onclick="switchTab('revenus')">📈 Revenus</button>
+            <button class="tab-btn" id="btn-tab-depenses" onclick="switchTab('depenses')">📉 Dépenses</button>
+            <button class="tab-btn" id="btn-tab-epargne" onclick="switchTab('epargne')">💰 Épargne</button>
+            <button class="tab-btn" id="btn-tab-registres" onclick="switchTab('registres')">🗂️ Registres</button>
+        </div>
+
+        <div id="page-dashboard" class="page-panel active">
+            <div class="container" style="margin-bottom: 14px; border-color: #38bdf8;">
+                <div class="title" style="color: #38bdf8; display:flex; justify-content:space-between; align-items:center;">
+                    <span>Tour de Contrôle Budgétaire</span>
+                    <span id="currentMonthBadge" style="color:#94a3b8; font-size:11px; font-family:monospace;">Sélectionnez un mois</span>
+                </div>
+
+                <div class="month-scroller" id="monthFilterSegment"></div>
+
+                <div class="grid-layout-kpi">
+                    <div class="kpi-card" style="border-color:rgba(16,185,129,0.3);"><label style="color:#10b981;">Revenus</label><div class="kpi-val" id="kpiRevenus" style="color:#10b981;">0 €</div></div>
+                    <div class="kpi-card" style="border-color:rgba(239,68,68,0.3);"><label style="color:#ef4444;">Dépenses</label><div class="kpi-val" id="kpiDepenses" style="color:#ef4444;">0 €</div></div>
+                    <div class="kpi-card" style="border-color:rgba(168,85,247,0.3);"><label style="color:#a855f7;">Épargne</label><div class="kpi-val" id="kpiEpargne" style="color:#a855f7;">0 €</div></div>
+                    <div class="kpi-card" style="border-color:rgba(192,132,252,0.3);"><label style="color:#c084fc;">Taux Ep.</label><div class="kpi-val" id="kpiTaux" style="color:#c084fc;">0%</div></div>
+                    <div class="kpi-card" style="border-color:rgba(56,189,248,0.3);"><label style="color:#38bdf8;">Solde Net</label><div class="kpi-val" id="kpiSolde" style="color:#38bdf8;">0 €</div></div>
+                </div>
+                
+                <div class="cylinder-box-wrapper">
+                    <div class="pin-overlay" id="cylinderPinGate">
+                        <div style="font-size: 8px; color: #94a3b8; font-weight: bold; letter-spacing: 0.5px;">🔒 COMMANDE VERROUILLÉE</div>
+                        <div class="pin-display" id="pinStars">****</div>
+                        <div class="pin-grid">
+                            <button class="pin-btn" onclick="pressPin(1)">1</button>
+                            <button class="pin-btn" onclick="pressPin(2)">2</button>
+                            <button class="pin-btn" onclick="pressPin(3)">3</button>
+                            <button class="pin-btn" onclick="pressPin(4)">4</button>
+                            <button class="pin-btn" onclick="pressPin(5)">5</button>
+                            <button class="pin-btn" onclick="pressPin(6)">6</button>
+                            <button class="pin-btn" onclick="pressPin(7)">7</button>
+                            <button class="pin-btn" onclick="pressPin(8)">8</button>
+                            <button class="pin-btn" onclick="pressPin(9)">9</button>
+                            <button class="pin-btn" style="color:#ef4444;" onclick="clearPin()">C</button>
+                            <button class="pin-btn" onclick="pressPin(0)">0</button>
+                            <button class="pin-btn" style="color:#10b981;" onclick="checkPin()">OK</button>
+                        </div>
+                    </div>
+
+                    <div class="cylinder-tank" id="cylinderSecurityTank"><div class="cylinder-top" style="color:#38bdf8;">BESOINS (50%)</div><div class="cylinder-liquid liquid-cons" id="cylinderLiquidFill"></div><div class="cylinder-lbl" id="cylinderPercentText">0%</div></div>
+                    <div class="cylinder-tank" style="border-color: #eab308;"><div class="cylinder-top" style="color:#eab308;">ENVIES (30%)</div><div class="cylinder-liquid liquid-want" id="cylinderWantFill"></div><div class="cylinder-lbl" id="cylinderWantText">0%</div></div>
+                    <div class="cylinder-tank" style="border-color: #a855f7;"><div class="cylinder-top" style="color:#a855f7;">PROJETS (20%)</div><div class="cylinder-liquid liquid-save" id="cylinderSaveFill"></div><div class="cylinder-lbl" id="cylinderSaveText">0%</div></div>
+                </div>
+            </div>
+            <div class="container" style="border-color: #eab308; margin-bottom: 14px;">
+                <div style="font-weight:700; font-size:12px; color:#eab308; border-bottom:1px solid #334155; padding-bottom:6px; text-transform:uppercase;">🔧 Créer une Nouvelle Rubrique</div>
+                <div style="display:flex; gap:10px; margin-top:10px;">
+                    <input type="text" id="newCategoryInput" placeholder="ex: Cigarettes, Assurances, Restos..." style="height:40px; font-size:13px; flex:3;">
+                    <button class="btn-act-pro btn-warning-pro" onclick="creerNouvelleCategorie()" style="flex:1;">🛠️ ENREGISTRER</button>
+                </div>
+            </div>
+
+            <div class="container" style="border-color: #475569; margin-bottom: 14px;">
+                <div class="title" style="margin-bottom:6px; padding-bottom:4px; display:flex; justify-content:space-between; align-items:center;"><span style="font-size:12px; font-weight:700; color:#94a3b8;">📊 Ventilation des comptes</span><select id="dashboardFilter" onchange="rafrachirTout()" style="height:28px; padding:2px 6px; font-size:12px; background-color:#0f172a; width:140px; border-color:#334155; color:#fff;"></select></div>
+                <div class="table-wrapper"><table class="budget-table"><thead><tr><th>Désignation</th><th>Volume Flux</th></tr></thead><tbody id="tableBodyCategories"></tbody></table></div>
+            </div>
+
+            <div class="container" style="border-color: #10b981; margin-bottom: 14px;">
+                <h2 class="title" style="color: #10b981;">📊 Performance de l'Historique Annuel (Entrées vs Sorties)</h2>
+                <div class="chart-box" id="pureCssChartContainer" style="padding:0;"></div>
+            </div>
+
+            <div class="container" style="border-color: #c084fc; margin-bottom: 14px;">
+                <div class="title" style="color: #c084fc; display:flex; justify-content:space-between; align-items:center;">
+                    <span>📈 Tendance Annuelle par Catégorie</span>
+                    <select id="lineChartCategorySelector" onchange="tracerCourbeAnnuelle()" style="height:26px; padding:2px; font-size:11px; background-color:#0f172a; width:150px; border-color:#334155; color:#fff;"></select>
+                </div>
+                <div class="line-chart-wrapper">
+                    <div id="pureCssLineChartContainer" style="width:100%; height:100%;"></div>
+                </div>
+            </div>
+
+            <div class="container" style="margin-bottom: 20px;">
+                <h2 class="title">Saisie Unique Base de Données</h2>
+                <div class="grid-layout" style="align-items:end;">
+                    <div class="input-group"><input type="date" id="txDate"></div>
+                    <div class="input-group">
+                        <select id="txType">
+                            <option value="Revenu">📈 Revenu</option>
+                            <option value="Dépense-Besoin">📉 Dépense : Besoin (50%)</option>
+                            <option value="Dépense-Envie">💛 Dépense : Envie (30%)</option>
+                            <option value="Épargne">💰 Épargne (20%)</option>
+                        </select>
+                    </div>
+                    <div class="input-group"><select id="txCategory"></select></div>
+                    <div class="input-group"><input type="number" id="txAmount" placeholder="Montant (€)" step="0.01"></div>
+                    <div class="input-group"><button class="btn-act-pro btn-success-pro" onclick="ajouterTx()">ENREGISTRER</button></div>
+                </div>
+            </div>
+        </div>
+        <div id="page-revenus" class="page-panel"><div class="container" style="border-color:#10b981;"><h2 class="title" style="color:#10b981;">📈 Carnet Individuel des Entrées (Revenus)</h2><div class="table-wrapper"><table class="budget-table"><thead><tr><th>Date</th><th>Rubrique</th><th>Montant</th><th>Action</th></tr></thead><tbody id="tableBodyRevenusSolo"></tbody></table></div></div></div>
+        <div id="page-depenses" class="page-panel"><div class="container" style="border-color:#ef4444;"><h2 class="title" style="color:#ef4444;">📉 Carnet Individuel des Sorties (Dépenses)</h2><div class="table-wrapper"><table class="budget-table"><thead><tr><th>Date</th><th>Rubrique</th><th>Montant</th><th>Action</th></tr></thead><tbody id="tableBodyDepensesSolo"></tbody></table></div></div></div>
+        <div id="page-epargne" class="page-panel"><div class="container" style="border-color:#a855f7;"><h2 class="title" style="color:#a855f7;">💰 Carnet Individuel des Placements (Épargne)</h2><div class="table-wrapper"><table class="budget-table"><thead><tr><th>Date</th><th>Rubrique</th><th>Montant</th><th>Action</th></tr></thead><tbody id="tableBodyEpargneSolo"></tbody></table></div></div></div>
+
+        <div id="page-registres" class="page-panel">
+            <div class="container" style="border-color:#38bdf8; display:flex; flex-direction:column; gap:20px;">
+                <div><h2 class="title" style="color:#34d399; margin-bottom:6px;">📈 Reçus des Rentrées (Revenus)</h2><div class="table-wrapper"><table class="budget-table"><thead><tr><th>Date Opération</th><th>Catégorie affectée</th><th>Montant Crédité</th><th>Action</th></tr></thead><tbody id="tableBodyRevenus"></tbody></table></div></div>
+                <div><h2 class="title" style="color:#f87171; margin-bottom:6px;">📉 Grand Livre des Factures (Dépenses)</h2><div class="table-wrapper"><table class="budget-table"><thead><tr><th>Date Opération</th><th>Catégorie affectée</th><th>Montant Débité</th><th>Action</th></tr></thead><tbody id="tableBodyDepenses"></tbody></table></div></div>
+                <div><h2 class="title" style="color:#c084fc; margin-bottom:6px;">💰 Journal des Placements (Épargne)</h2><div class="table-wrapper"><table class="budget-table"><thead><tr><th>Date Opération</th><th>Catégorie affectée</th><th>Montant Placé</th><th>Action</th></tr></thead><tbody id="tableBodyEpargne"></tbody></table></div></div>
+            </div>
+        </div>
+
+        <div class="master-footer-sticky">
+            <button class="btn-act-pro" onclick="exporterVersExcelCSV()" style="max-width:250px;">📤 Exporter vers Excel (.CSV)</button>
+            <button class="btn-act-pro btn-danger-pro" onclick="purgerBDD()" style="max-width:250px;">🗑️ Vider la Base de Données</button>
+        </div>
+    </div>
+<script>
+    let codePinMaster = "1234";
+    let codePinSaisi = "";
+
+    function pressPin(num) {
+        if (codePinSaisi.length < 4) {
+            codePinSaisi += num;
+            document.getElementById("pinStars").innerText = "*".repeat(codePinSaisi.length);
+        }
+    }
+    function clearPin() {
+        codePinSaisi = "";
+        document.getElementById("pinStars").innerText = "****";
+    }
+    function checkPin() {
+        if (codePinSaisi === codePinMaster) {
+            document.getElementById("cylinderPinGate").style.display = "none";
+        } else {
+            alert("CODE PIN INCORRECT.");
+            clearPin();
+        }
+    }
+
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.page-panel').forEach(page => { page.style.display = 'none'; page.classList.remove('active'); });
+        const activeBtn = document.getElementById('btn-tab-' + tabId);
+        if (activeBtn) activeBtn.classList.add('active');
+        const targetPage = document.getElementById('page-' + tabId);
+        if (targetPage) { targetPage.style.display = 'block'; targetPage.classList.add('active'); }
+        rafrachirTout();
+    }
+</script>
+<script>
+    let categoriesDefaut = ["Salaire", "Loyer", "Courses", "Essence", "Tabac", "Abonnements", "Divers"];
+    let moisActifSelectionne = new Date().getMonth();
+    let anneeActiveSelectionne = new Date().getFullYear();
+
+    function initialiserCategories() {
+        if (!localStorage.getItem('categories_budget_v14')) { 
+            localStorage.setItem('categories_budget_v14', JSON.stringify(categoriesDefaut)); 
+        }
+        renderDropdownsCategories();
+    }
+
+    function renderDropdownsCategories() {
+        let localCats = localStorage.getItem('categories_budget_v14');
+        let cats = localCats ? JSON.parse(localCats) : categoriesDefaut;
+        const filterSelect = document.getElementById('dashboardFilter');
+        const inputSelect = document.getElementById('txCategory');
+        const chartSelect = document.getElementById('lineChartCategorySelector');
+        
+        let oldFilterVal = filterSelect ? filterSelect.value : "TOUT";
+        let oldChartVal = chartSelect ? chartSelect.value : (cats || "");
+
+        if (filterSelect) { 
+            filterSelect.innerHTML = `<option value="TOUT">✨ TOUT (Global)</option>`; 
+            cats.forEach(c => { filterSelect.innerHTML += `<option value="${c}">${c}</option>`; }); 
+            filterSelect.value = oldFilterVal; 
+        }
+        if (inputSelect) { 
+            inputSelect.innerHTML = ""; 
+            cats.forEach(c => { inputSelect.innerHTML += `<option value="${c}">${c}</option>`; }); 
+        }
+        if (chartSelect) {
+            chartSelect.innerHTML = "";
+            cats.forEach(c => { chartSelect.innerHTML += `<option value="${c}">${c}</option>`; });
+            chartSelect.value = oldChartVal;
+        }
+    }
+
+    function creerNouvelleCategorie() {
+        const input = document.getElementById('newCategoryInput'); let txt = input.value.trim(); if (!txt) return alert("Nom vide.");
+        txt = txt.charAt(0).toUpperCase() + txt.slice(1); let localCats = localStorage.getItem('categories_budget_v14');
+        let cats = localCats ? JSON.parse(localCats) : categoriesDefaut;
+        if (cats.includes(txt)) return alert("Existe déjà.");
+        cats.push(txt); localStorage.setItem('categories_budget_v14', JSON.stringify(cats)); input.value = "";
+        renderDropdownsCategories(); rafrachirTout();
+    }
+
+    let bddInit = [{ date: "2026-10-01", type: "Revenu", cat: "Salaire", amount: 1600.00 }, { date: "2026-10-02", type: "Dépense-Besoin", cat: "Loyer", amount: 25.30 }, { date: "2026-10-08", type: "Épargne", cat: "Divers", amount: 250.00 }];
+    if (!localStorage.getItem('bdd_finance_v14')) { localStorage.setItem('bdd_finance_v14', JSON.stringify(bddInit)); }
+
+    // BLINDAGE INFORMATIQUE DE L'ALLUMAGE INITIAL : RE-LIAISON DES INTERRUPTEURS
+    window.addEventListener("load", () => {
+        if(document.getElementById('txDate')) {
+            document.getElementById('txDate').value = new Date().toISOString().split('T')[0];
+        }
+        initialiserCategories();
+        rafrachirTout();
+    });
+
+    function ajouterTx() {
+        const inputDate = document.getElementById('txDate').value; const type = document.getElementById('txType').value; const cat = document.getElementById('txCategory').value; const amount = parseFloat(document.getElementById('txAmount').value);
+        if (!inputDate || isNaN(amount) || amount <= 0) return alert("Données incorrectes.");
+        let localData = localStorage.getItem('bdd_finance_v14');
+        let base = localData ? JSON.parse(localData) : []; 
+        base.push({ date: inputDate, type: type, cat: cat, amount: amount });
+        localStorage.setItem('bdd_finance_v14', JSON.stringify(base)); 
+        document.getElementById('txAmount').value = ""; 
+        
+        let dObj = new Date(inputDate);
+        moisActifSelectionne = dObj.getMonth();
+        anneeActiveSelectionne = dObj.getFullYear();
+        rafrachirTout();
+    }
+</script>
+<script>
+    function selectionnerMoisFiltre(m, a) {
+        moisActifSelectionne = m;
+        anneeActiveSelectionne = a;
+        rafrachirTout();
+    }
+
+    function rafrachirTout() {
+        let localData = localStorage.getItem('bdd_finance_v14');
+        let base = localData ? JSON.parse(localData) : [];
+        
+        const filterSelect = document.getElementById('dashboardFilter'); 
+        const activeFilter = filterSelect ? filterSelect.value : "TOUT";
+            
+        const tRev = document.getElementById('tableBodyRevenus'); 
+        const tDep = document.getElementById('tableBodyDepenses'); 
+        const tEpa = document.getElementById('tableBodyEpargne');
+        const tRevSolo = document.getElementById('tableBodyRevenusSolo'); 
+        const tDepSolo = document.getElementById('tableBodyDepensesSolo'); 
+        const tEpaSolo = document.getElementById('tableBodyEpargneSolo');
+        
+        if(tRev) tRev.innerHTML = ""; if(tDep) tDep.innerHTML = ""; if(tEpa) tEpa.innerHTML = "";
+        if(tRevSolo) tRevSolo.innerHTML = ""; if(tDepSolo) tDepSolo.innerHTML = ""; if(tEpaSolo) tEpaSolo.innerHTML = "";
+
+        let moisNoms = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
+        
+        const segmentContainer = document.getElementById('monthFilterSegment');
+        if (segmentContainer) {
+            segmentContainer.innerHTML = "";
+            let moisDejàAjoutes = [];
+            let mActuel = new Date().getMonth(); 
+            let aActuel = new Date().getFullYear();
+            moisDejàAjoutes.push(mActuel + "-" + aActuel);
+            
+            base.forEach(tx => {
+                let d = new Date(tx.date);
+                let key = d.getMonth() + "-" + d.getFullYear();
+                if (!moisDejàAjoutes.includes(key)) { moisDejàAjoutes.push(key); }
+            });
+            
+            moisDejàAjoutes.forEach(key => {
+                let parts = key.split("-"); let m = parseInt(parts[0]); let a = parseInt(parts[1]);
+                let pill = document.createElement('div');
+                pill.className = "month-pill" + ((m === moisActifSelectionne && a === anneeActiveSelectionne) ? " active" : "");
+                pill.innerText = moisNoms[m] + " " + a;
+                pill.onclick = () => { selectionnerMoisFiltre(m, a); };
+                segmentContainer.appendChild(pill);
+            });
+        }
+
+        if (document.getElementById('currentMonthBadge')) {
+            document.getElementById('currentMonthBadge').innerText = "📅 " + moisNoms[moisActifSelectionne] + " " + anneeActiveSelectionne;
+        }
+
+        let sRev = 0, sDep = 0, sEpa = 0; 
+        let totalBesoins = 0; let totalEnvies = 0; let totalEpargne = 0; 
+        let categoriesVolume = {};
+        base.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        base.forEach((item, index) => {
+            let txDateObj = new Date(item.date); let txMois = txDateObj.getMonth(); let txAnnee = txDateObj.getFullYear();
+            let dateStr = txDateObj.toLocaleDateString('fr-FR');
+            
+            let cBadge = item.type==='Revenu' ? 'badge-rev' : (item.type==='Épargne' ? 'badge-epa' : 'badge-dep');
+            let cColor = item.type==='Revenu' ? '#34d399' : (item.type==='Épargne' ? '#c084fc' : '#f87171');
+            let sign = item.type==='Revenu' ? '+' : '-';
+            let vFmt = item.amount.toLocaleString('fr-FR', { minimumFractionDigits: 2 });
+            
+            let rowHTML = `<tr><td>📅 ${dateStr}</td><td><span class="badge-flux ${cBadge}">${item.cat}</span></td><td style="font-weight:bold; font-family:monospace; color:${cColor};">${sign} ${vFmt} €</td><td><button class="btn-del" onclick="supprimerItem(${index})">Suppr</button></td></tr>`;
+
+            if (item.type === "Revenu") { if(tRev) tRev.innerHTML += rowHTML; if(tRevSolo) tRevSolo.innerHTML += rowHTML; }
+            if (item.type.startsWith("Dépense")) { if(tDep) tDep.innerHTML += rowHTML; if(tDepSolo) tDepSolo.innerHTML += rowHTML; }
+            if (item.type === "Épargne") { if(tEpa) tEpa.innerHTML += rowHTML; if(tEpaSolo) tEpaSolo.innerHTML += rowHTML; }
+
+            if (activeFilter === "TOUT" || item.cat === activeFilter) {
+                if (!categoriesVolume[item.cat]) { 
+                    categoriesVolume[item.cat] = { isIncome: (item.type === "Revenu"), total: 0 }; 
+                }
+                if (item.type === "Revenu") { categoriesVolume[item.cat].total += item.amount; }
+                else { categoriesVolume[item.cat].total -= item.amount; }
+            }
+
+            if (txMois === moisActifSelectionne && txAnnee === anneeActiveSelectionne) {
+                if (item.type === "Revenu") { sRev += item.amount; }
+                if (item.type === "Dépense-Besoin") { totalBesoins += item.amount; sDep += item.amount; }
+                if (item.type === "Dépense-Envie") { totalEnvies += item.amount; sDep += item.amount; }
+                if (item.type === "Épargne") { totalEpargne += item.amount; sEpa += item.amount; }
+            }
+        });
+
+        window.tempCompta = { sRev, sDep, sEpa, totalBesoins, totalEnvies, totalEpargne, categoriesVolume, activeFilter };
+    }
+</script>
+<script>
+    function rafrachirInterface() {
+        const d = window.tempCompta || { 
+            sRev: 0, sDep: 0, sEpa: 0, 
+            totalBesoins: 0, totalEnvies: 0, 
+            totalEpargne: 0, categoriesVolume: {} 
+        };
+        const { sRev, sDep, sEpa, totalBesoins, 
+                totalEnvies, totalEpargne, 
+                categoriesVolume } = d;
+
+        let soldeDisponible = sRev - sDep - sEpa;
+        let pctBesoins = sRev > 0 ? 
+            (totalBesoins / sRev) * 100 : 0;
+        let pctEnvies = sRev > 0 ? 
+            (totalEnvies / sRev) * 100 : 0;
+        let pctEpargneReel = sRev > 0 ? 
+            (totalEpargne / sRev) * 100 : 0;
+
+        if (document.getElementById('kpiRevenus')) {
+            document.getElementById('kpiRevenus')
+            .innerText = sRev
+            .toLocaleString('fr-FR') + " €";
+        }
+        if (document.getElementById('kpiDepenses')) {
+            document.getElementById('kpiDepenses')
+            .innerText = sDep
+            .toLocaleString('fr-FR') + " €";
+        }
+        if (document.getElementById('kpiEpargne')) {
+            document.getElementById('kpiEpargne')
+            .innerText = sEpa
+            .toLocaleString('fr-FR') + " €";
+        }
+        if (document.getElementById('kpiTaux')) {
+            document.getElementById('kpiTaux')
+            .innerText = (sRev > 0 ? 
+            (sEpa / sRev) * 100 : 0)
+            .toFixed(0) + " %";
+        }
+        if (document.getElementById('kpiSolde')) {
+            document.getElementById('kpiSolde')
+            .innerText = soldeDisponible
+            .toLocaleString('fr-FR', {
+                minimumFractionDigits:2
+            }) + " €";
+            document.getElementById('kpiSolde')
+            .style.color = soldeDisponible < 0 ? 
+                "#f87171" : "#38bdf8";
+        }
+
+        const tankBesoins = 
+            document.getElementById(
+                'cylinderSecurityTank'
+            );
+        if (tankBesoins) {
+            if (pctBesoins > 50.0) { 
+                tankBesoins.classList
+                .add('danger-active'); 
+            } else { 
+                tankBesoins.classList
+                .remove('danger-active'); 
+            }
+        }
+
+        if (document.getElementById(
+            'cylinderLiquidFill'
+        )) { 
+            document.getElementById(
+                'cylinderLiquidFill'
+            ).style.height = 
+                Math.min(pctBesoins, 100) + "%"; 
+            document.getElementById(
+                'cylinderPercentText'
+            ).innerHTML = 
+                pctBesoins.toFixed(1) + "%"; 
+        }
+        if (document.getElementById(
+            'cylinderWantFill'
+        )) { 
+            document.getElementById(
+                'cylinderWantFill'
+            ).style.height = 
+                Math.min(pctEnvies, 100) + "%"; 
+            document.getElementById(
+                'cylinderWantText'
+            ).innerHTML = 
+                pctEnvies.toFixed(1) + "%"; 
+        }
+        if (document.getElementById(
+            'cylinderSaveFill'
+        )) { 
+            document.getElementById(
+                'cylinderSaveFill'
+            ).style.height = 
+                Math.min(pctEpargneReel, 100) + "%"; 
+            document.getElementById(
+                'cylinderSaveText'
+            ).innerHTML = 
+                pctEpargneReel.toFixed(1) + "%"; 
+        }
+
+        const tCat = document.getElementById(
+            'tableBodyCategories'
+        );
+        if (tCat) {
+            tCat.innerHTML = "";
+            for (let c in categoriesVolume) {
+                let rCat = 
+                    document.createElement('tr'); 
+                let isInc = 
+                    categoriesVolume[c].isIncome;
+                let sign = isInc ? '+' : '-'; 
+                let colColor = isInc ? 
+                    '#34d399' : '#f87171';
+                let tFmt = Math.abs(
+                    categoriesVolume[c].total
+                ).toLocaleString('fr-FR', { 
+                    minimumFractionDigits: 2 
+                });
+                rCat.innerHTML = 
+                    `<td>📁 <b>${c}</b></td>` +
+                    `<td style="color:${colColor};` +
+                    ` font-weight:bold;">` +
+                    `${sign} ${tFmt} €</td>`;
+                tCat.appendChild(rCat);
+            }
+            if(tCat.innerHTML === "") { 
+                tCat.innerHTML = 
+                    "<tr><td colspan='2' " +
+                    "style='text-align:center; " +
+                    "color:#64748b;'>" +
+                    "Aucune ligne.</td></tr>"; 
+            }
+        }
+        genererGraphiqueNatifCylindres();
+    }
+
+    function tracerCourbeAnnuelle() {
+        const container = document.getElementById(
+            'pureCssLineChartContainer'
+        );
+        const selector = document.getElementById(
+            'lineChartCategorySelector'
+        );
+        if (!container || !selector) return;
+        
+        const catCible = selector.value;
+        let localData = 
+            localStorage.getItem('bdd_finance_v14');
+        let base = localData ? 
+            JSON.parse(localData) : [];
+        
+        let moisNoms = ["Janv", "Févr", "Mars", 
+                        "Avril", "Mai", "Juin", 
+                        "Juill", "Août", "Sept", 
+                        "Oct", "Nov", "Déc"];
+        let valeursParMois = Array(12).fill(0);
+        
+        base.forEach(item => {
+            if (item.cat === catCible) {
+                let m = new Date(item.date)
+                        .getMonth();
+                valeursParMois[m] += item.amount;
+            }
+        });
+
+        let maxVal = Math.max(...valeursParMois, 100);
+        let width = container.clientWidth || 350; 
+        let height = 140; let padding = 25;
+        let points = []; 
+        let xStep = (width - padding * 2) / 11;
+        
+        for (let i = 0; i < 12; i++) {
+            let x = padding + i * xStep;
+            let y = height - padding - 
+                (valeursParMois[i] / maxVal) * 
+                (height - padding * 2);
+            points.push({
+                x, y, val: valeursParMois[i], 
+                mois: moisNoms[i]
+            });
+        }
+        
+        let pathD = `M ${points[0].x} ${points[0].y}`;
+        for (let i = 1; i < points.length; i++) { 
+            pathD += ` L ${points[i].x} ` +
+                     `${points[i].y}`; 
+        }
+        
+        let svgHtml = `<svg class="line-chart-svg"` +
+            ` width="${width}" height="${height}">`;
+        svgHtml += `<line x1="${padding}"` +
+            ` y1="${height-padding}"` +
+            ` x2="${width-padding}"` +
+            ` y2="${height-padding}"` +
+            ` stroke="#1e293b" stroke-width="1"/>`;
+        svgHtml += `<path d="${pathD}" fill="none"` +
+            ` stroke="#c084fc" stroke-width="3"` +
+            ` stroke-linecap="round"` +
+            ` stroke-linejoin="round"` +
+            ` style="filter: drop-shadow(0px 0px ` +
+            `4px rgba(192,132,252,0.6));"/>`;
+        
+        points.forEach(p => {
+            svgHtml += `<circle cx="${p.x}"` +
+                ` cy="${p.y}" r="4" fill="#0f172a"` +
+                ` stroke="#38bdf8" stroke-width="2"/>`;
+            if (p.val > 0) { 
+                svgHtml += `<line x1="${p.x}"` +
+                    ` y1="${p.y}" x2="${p.x}"` +
+                    ` y2="15"` +
+                    ` stroke="rgba(56,189,248,0.25)"` +
+                    ` stroke-width="1"` +
+                    ` stroke-dasharray="2,2"/>`;
+                svgHtml += `<text x="${p.x}" y="12"` +
+                    ` fill="#38bdf8" font-size="11px"` +
+                    ` font-weight="900"` +
+                    ` font-family:'Segoe UI',sans-serif;` +
+                    ` text-anchor:middle;">` +
+                    `${Math.round(p.val)}€</text>`; 
+            }
+            svgHtml += `<text x="${p.x}"` +
+                ` y="${height - 8}" fill="#facc15"` +
+                ` font-size="9px" font-weight="bold"` +
+                ` text-anchor:middle;">` +
+                `${p.mois}</text>`;
+        });
+        svgHtml += `</svg>`; container.innerHTML = svgHtml;
+    }
+
+    const originalRafrachir = rafrachirTout;
+    rafrachirTout = function() { 
+        originalRafrachir(); 
+        rafrachirInterface(); 
+    };
+    window.tempMoisNoms = ["Janv", "Févr", "Mars", 
+                           "Avril", "Mai", "Juin", 
+                           "Juill", "Août", "Sept", 
+                           "Oct", "Nov", "Déc"];
+</script>
+<script>
+    function genererGraphiqueNatifCylindres() {
+        const container = document.getElementById(
+            'pureCssChartContainer'
+        ); 
+        if (!container) return;
+        let localData = 
+            localStorage.getItem('bdd_finance_v14'); 
+        let base = localData ? 
+            JSON.parse(localData) : [];
+        
+        let moisNoms = window.tempMoisNoms;
+        let revParMois = Array(12).fill(0);
+        let depParMois = Array(12).fill(0);
+        
+        base.forEach(item => {
+            let m = new Date(item.date).getMonth();
+            if (item.type === "Revenu") { 
+                revParMois[m] += item.amount; 
+            }
+            if (item.type === "Dépense-Besoin" || 
+                item.type === "Dépense-Envie") {
+                depParMois[m] += item.amount;
+            }
+        });
+        
+        let maxVal = Math.max(
+            ...revParMois, ...depParMois, 500
+        );
+        let width = container.clientWidth || 350; 
+        let height = 180; let padding = 30;
+        let xStep = (width - padding * 2) / 12;
+        
+        let svgHtml = `<svg width="100%"` +
+            ` height="${height}"` +
+            ` style="overflow:visible;">`;
+        
+        svgHtml += `<defs>`;
+        svgHtml += `<linearGradient id="gR"` +
+            ` x1="0" y1="0" x2="0" y2="1">`;
+        svgHtml += `<stop offset="0%"` +
+            ` stop-color="#0ea5e9"/>`;
+        svgHtml += `<stop offset="100%"` +
+            ` stop-color="#032b45"/>`;
+        svgHtml += `</linearGradient>`;
+        svgHtml += `<linearGradient id="gD"` +
+            ` x1="0" y1="0" x2="0" y2="1">`;
+        svgHtml += `<stop offset="0%"` +
+            ` stop-color="#ef4444"/>`;
+        svgHtml += `<stop offset="100%"` +
+            ` stop-color="#4c1111"/>`;
+        svgHtml += `</linearGradient>`;
+        svgHtml += `</defs>`;
+        
+        svgHtml += `<line x1="${padding}"` +
+            ` y1="${(height-padding)*0.33}"` +
+            ` x2="${width-padding}"` +
+            ` y2="${(height-padding)*0.33}"` +
+            ` stroke="#1e293b" stroke-width="1"` +
+            ` stroke-dasharray="4,4"/>`;
+        svgHtml += `<line x1="${padding}"` +
+            ` y1="${(height-padding)*0.66}"` +
+            ` x2="${width-padding}"` +
+            ` y2="${(height-padding)*0.66}"` +
+            ` stroke="#1e293b" stroke-width="1"` +
+            ` stroke-dasharray="4,4"/>`;
+        svgHtml += `<line x1="${padding}"` +
+            ` y1="${height-padding}"` +
+            ` x2="${width-padding}"` +
+            ` y2="${height-padding}"` +
+            ` stroke="#475569" stroke-width="1.5"/>`;
+        
+        for (let i = 0; i < 12; i++) {
+            let spaceX = padding + i * xStep;
+            let barW = xStep * 0.35;
+            
+            let hRev = (revParMois[i] / maxVal) * 
+                       (height - padding * 2);
+            let hDep = (depParMois[i] / maxVal) * 
+                       (height - padding * 2);
+            
+            let yRev = height - padding - hRev;
+            let yDep = height - padding - hDep;
+            
+            let xRev = spaceX + (xStep * 0.12);
+            let xDep = xRev + barW + (xStep * 0.05);
+            
+            if (revParMois[i] > 0) {
+                svgHtml += `<rect x="${xRev}"` +
+                    ` y="${yRev}" width="${barW}"` +
+                    ` height="${hRev}" fill="url(#gR)"` +
+                    ` rx="4"/>`;
+                svgHtml += `<text x="${xRev + barW/2}"` +
+                    ` y="${yRev - 6}" fill="#34d399"` +
+                    ` font-size="9px" font-weight="900"` +
+                    ` font-family:monospace;` +
+                    ` text-anchor:middle;">` +
+                    `${Math.round(revParMois[i])}` +
+                    `</text>`;
+            }
+            if (depParMois[i] > 0) {
+                svgHtml += `<rect x="${xDep}"` +
+                    ` y="${yDep}" width="${barW}"` +
+                    ` height="${hDep}" fill="url(#gD)"` +
+                    ` rx="4"/>`;
+                svgHtml += `<text x="${xDep + barW/2}"` +
+                    ` y="${yDep - 6}" fill="#f87171"` +
+                    ` font-size="9px" font-weight="900"` +
+                    ` font-family:monospace;` +
+                    ` text-anchor:middle;">` +
+                    `${Math.round(depParMois[i])}` +
+                    `</text>`;
+            }
+            svgHtml += `<text x="${spaceX + xStep/2}"` +
+                ` y="${height - 8}" fill="#facc15"` +
+                ` font-size="10px" font-weight="bold"` +
+                ` text-anchor:middle;">` +
+                `${moisNoms[i]}</text>`;
+        }
+        svgHtml += `</svg>`;
+        container.innerHTML = svgHtml;
+    }
+
+    function exporterVersExcelCSV() {
+        let localData = 
+            localStorage.getItem('bdd_finance_v14'); 
+        let base = localData ? 
+            JSON.parse(localData) : [];
+        let csv = "Date;Type;Categorie;Montant\n";
+        base.forEach(item => { 
+            csv += item.date + ";" + item.type + ";" + 
+                   item.cat + ";" + 
+                   item.amount.toFixed(2) + "\n"; 
+        });
+        const blob = new Blob(
+            [new Uint8Array([0xEF, 0xBB, 0xBF]), csv], 
+            { type: "text/csv;charset=utf-8;" }
+        );
+        const link = document.createElement("a"); 
+        link.href = URL.createObjectURL(blob); 
+        link.setAttribute(
+            "download", "registre.csv"
+        );
+        document.body.appendChild(link); link.click(); 
+        document.body.removeChild(link);
+    }
+
+    function supprimerItem(index) {
+        let localData = 
+            localStorage.getItem('bdd_finance_v14'); 
+        let base = localData ? 
+            JSON.parse(localData) : [];
+        base.splice(index, 1); 
+        localStorage.setItem(
+            'bdd_finance_v14', 
+            JSON.stringify(base)
+        ); 
+        rafrachirTout();
+    }
+
+    function purgerBDD() {
+        if (confirm("Purger tout ?")) {
+            localStorage.setItem(
+                'bdd_finance_v14', 
+                JSON.stringify([])
+            );
+            localStorage.setItem(
+                'categories_budget_v14', 
+                JSON.stringify(categoriesDefaut)
+            );
+            initialiserCategories(); 
+            rafrachirTout();
+        }
+    }
+</script>
+</div>
+</body>
+</html>
